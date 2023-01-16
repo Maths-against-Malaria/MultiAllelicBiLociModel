@@ -1,1 +1,1 @@
-# MultiAllelicBiLociModel
+# STRModel
