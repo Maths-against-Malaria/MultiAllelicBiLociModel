@@ -142,7 +142,7 @@ datasetgen <- function(P,lambda,N,arch){
   m <- cpoiss(lambda,N)              # MOI values for each sample following CPoiss(lambda)
   for(j in 1:N){                     
     s <- rmultinom(1, m[j], P) #multinomially select M[j] haplotypes from the haplotype pool
-    out[j,] <- obs(H[s!=0,], arch)-1 #Summing up the trianary representation of a number representing the infection
+    out[j,] <- obs(H[s!=0,], arch) #Summing up the trianary representation of a number representing the infection
   } #vector of infections
   out
 }

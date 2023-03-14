@@ -44,7 +44,6 @@ psi <- function (inp){
   inp / (1 - exp(-inp))
 }
 
-
 dataframe_builder_LD <- function(ld_estim, type_ld, locNumb, true_ld){
   NRow <- length(samp_Vec)*length(lbda_Vec)*n_Freq_Distr*n_Hapl[locNumb] 
 
@@ -209,7 +208,7 @@ main <- function(sim_Param, name, gen){
     }
   }
 
-  if(1==0){ # Plotting LD vs Adhoc LD
+  if(1==1){ # Plotting LD vs Adhoc LD
     # Importing the data to plot
     D_ld      <- readRDS(paste0(path, "dataset/estim_LD_D",   name, ".rds"))
     r_ld      <- readRDS(paste0(path, "dataset/estim_LD_r",   name, ".rds"))
@@ -294,7 +293,7 @@ main <- function(sim_Param, name, gen){
 
   legende1  <- samp_Vec
   
-  if(1==0){ # Plotting bias for haplotype frequencies
+  if(1==1){ # Plotting bias for haplotype frequencies
     # Importing the data to plot
     freqbias <- readRDS(paste0(path, "dataset/freqbias", name, ".rds"))
 
@@ -330,7 +329,7 @@ main <- function(sim_Param, name, gen){
     }
   }
 
-  if(1==0){ # Plotting bias and coefficient of variation for MOI
+  if(1==1){ # Plotting bias and coefficient of variation for MOI
     # Importing the data to plot
     moibias  <- readRDS(paste0(path, "dataset/moibias", name, ".rds"))
     moicv    <- readRDS(paste0(path, "dataset/moicv", name, ".rds"))

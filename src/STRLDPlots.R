@@ -7,7 +7,7 @@
 # Last modified: 05.01.2023
 
 # Loading libraries
-library(xlsx)
+library(openxlsx)
 library(tidyr)
 library(ggplot2)
 library(stringr)
@@ -78,10 +78,10 @@ plotld <- function(dat, LDvals, title="", year="", type="str", labs=labs, Blocks
 }
 
 # Relative path
-path <- "/Volumes/GoogleDrive-117934057836063832284/.shortcut-targets-by-id/1Ulru-DjbFRaMVB7Vj9tJ4NfyzPDkhzOr/Maths against Malaria/Christian/Models/MultiAllelicBilociModel"
+path <- "/Users/christian/Library/CloudStorage/GoogleDrive-christian.tsoungui@aims-cameroon.org/.shortcut-targets-by-id/1Ulru-DjbFRaMVB7Vj9tJ4NfyzPDkhzOr/Maths against Malaria/Christian/Models/MultiAllelicBiLociModel"
 
 # Import the dataset
-DATA <- read.xlsx(paste0(path, '/private/dataset/cameroon_data_CT.xlsx'), 2, header = TRUE)
+DATA <- read.xlsx(paste0(path, '/private/dataset/cameroon_data_CT.xlsx'), 2)
 
 # Load external resources
 source(paste0(path, "/src/STRModel.R"))
