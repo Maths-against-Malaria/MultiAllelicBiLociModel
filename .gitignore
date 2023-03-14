@@ -37,3 +37,9 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# Directories
+/dataset
+/plots
+/private
+/src/archives
