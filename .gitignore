@@ -43,3 +43,7 @@ vignettes/*.pdf
 /plots
 /private
 /src/archives
+/src/modelPerformance.R
+/src/plot.R
+/src/simulationSimData.R
+/src/STRLDPlots.R
