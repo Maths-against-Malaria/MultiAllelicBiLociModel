@@ -2,7 +2,7 @@
 # Objective    : Contains implementation of the model (EM-algorithm) and supporting functions
 # Created by   : Christian Tsoungui Obama, Kristan. A. Schneider
 # Created on   : 05.05.22
-# Last modified: 26.10.22
+# Last modified: 14.03.23
 
 #################################
 # Function varsets(n,l) outputs all possible vectors of length n with entries 0,.., l-1
@@ -604,7 +604,7 @@ reform <- function(DATA, arch, id = TRUE){
 
 #################################
 # The function mle() wraps the reform(X1,id) and either strmodel(dat, arch) or strmodel_plugin(dat, arch, plugin) to find the MLEs 
-# with or without the Poisson parameter as a plug-in estimate, respectively. Moreover, the option to ouput t bias corrected (BC) estimates with 
+# with or without the Poisson parameter as a plug-in estimate, respectively. Moreover, the option to ouput the bias corrected (BC) estimates with 
 # confidence intervals (CI) is available. The function outputs the estimates for haplotype frequencies, Poisson parameters, and a matrix of detected haplotypes.
 #################################
 mle <-function(Data, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=10000, B=10000, alpha=0.05){
@@ -743,6 +743,12 @@ sampl <- function(dat, arch){
     out <- table(as.matrix(dat, ncol=nloci)%*%trin + 1)
     out
 }
+
+#################################
+# The function ldestim() wraps the reform(X1,id) and either strmodel(dat, arch) or strmodel_plugin(dat, arch, plugin) to find the estimates for LD.
+# The esimates can be obtained with or without the Poisson parameter as a plug-in estimate, respectively. Moreover, the option to ouput the bias corrected (BC) estimates with 
+# confidence intervals (CI) is available. The function outputs the estimates of common LD measures, i.e., D', r-squared, and Q-star..
+#################################
 
 ldestim0 <- function(est, gen){
   # Ordering frequencies estimates from 1 to H=n1*n2. The ordering is necessary to obtain the alleles marginal frequencies.
