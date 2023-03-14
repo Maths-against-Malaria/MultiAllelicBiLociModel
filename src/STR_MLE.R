@@ -4,16 +4,18 @@
 #                from genomic/molecular data (microsatellite data)
 # Created by   : Christian Tsoungui Obama
 # Created on   : 05.05.22
+
 # Last modified: 09.03.23
 
 # Install the necessary packages if necessary
-install.packages('openxlsx')   # Comment this line if xlsx installed
+install.packages('openxlsx')   # Comment this line if openxlsx installed
 
 # Loading libraries
 library(openxlsx)
 
 # Import the dataset
 DATA <- read.xlsx('/home/janedoe/Documents/example_data1.xlsx', 1)
+
 
 # Load external resources
 source("/home/janedoe/Documents/STRModel.R")
@@ -32,3 +34,4 @@ mle(X, c(3,2), id = TRUE, plugin = NULL, CI = TRUE)
 
 # Find MLEs (haplotype frequencies and MOI) using a 90% confidence interval and 15000 bootstrap samples
 mle(X, c(3,2), id = TRUE, plugin = NULL, CI = TRUE, B = 15000, alpha = 0.1)
+
