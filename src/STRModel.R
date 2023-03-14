@@ -491,44 +491,9 @@ strmodel_plugin <- function(dat, arch, lam){
       }else{
         ppn <- Bcoeff/(sum(Bcoeff))
     }
-
-    ### Newton step
-    # cond2 <- 1
-    # xt    <- Ccoeff   ### good initial condition
-    # tau   <- 0
-    # while(cond2 > eps  &&  tau<300){
-    #   tau <- tau + 1
-    #   ex  <- exp(-xt)
-    #   xtn <- xt + (1-ex)*(xt + Ccoeff*ex - Ccoeff)/(ex*xt+ex-1)
-    #   if(is.nan(xtn) || (tau == 299) || xtn < 0){
-    #       xtn <- runif(1, 0.1, 2.5)
-    #   }
-    #   cond2 <- abs(xtn-xt)
-    #   xt <- xtn
-    # }
-    # cond1 <- abs(xt-la)+sqrt(sum((pp-ppn)^2))
-    # la <- xt
     cond1 <- sqrt(sum((pp-ppn)^2))
     pp <- ppn
   }
-  ## Ordering the frequencies
-  # pp <- pp[order(as.numeric(rownames(pp))), ]
-
-  # ## Setting the frequencies of the unobserved haplotypes to 0.0
-  # nhapl <- prod(arch)
-
-  # if(length(pp)<nhapl){
-  #   out <- t(pp)
-  #   name <- colnames(out)
-  #   cnt <- 0
-  #   for (i in 1:nhapl) {
-  #     if (is.element(as.character(i), name)){
-  #       cnt <- cnt + 1
-  #     }else{
-  #       pp <- append(pp, list(x = 0.0), i-1)
-  #     }
-  #   }
-  # }
   list(lam, pp)
 }
 
@@ -638,7 +603,7 @@ reform <- function(DATA, arch, id = TRUE){
 }
 
 #################################
-# The function mle(df,id) wraps the reform(X1,id) and either strmodel(dat, arch) or strmodel_plugin(dat, arch, plugin) to find the MLEs 
+# The function mle() wraps the reform(X1,id) and either strmodel(dat, arch) or strmodel_plugin(dat, arch, plugin) to find the MLEs 
 # with or without the Poisson parameter as a plug-in estimate, respectively. Moreover, the option to ouput t bias corrected (BC) estimates with 
 # confidence intervals (CI) is available. The function outputs the estimates for haplotype frequencies, Poisson parameters, and a matrix of detected haplotypes.
 #################################
@@ -769,216 +734,6 @@ mle2 <-function(dat1, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="bo
   out
 }
 #################################
-# The function adhocfreqmodel(X,Nx) calculates the relative prevalence of the haplotypes
-# conditionned on unambiguous observations.
-#################################
-adhocfreqmodel <- function(X, Nx, arch){
-  X     <- cbind(X, Nx)
-  n     <- ncol(X)
-  nloci <- n-1
-
-  # number of haplotypes
-  nhpl <- prod(arch)
-  
-  # extract unambiguous observations
-  bin <- list(2^(0:arch[1]), 2^(0:arch[2]))
-  Y <-  X[,1:2]+1  
-  pick1 <- Y
-  for(i in 1:2){
-    Y[,i] <- sapply((Y[,i]), function(x) sum(as.integer(intToBits(x))[-seq((arch[i]+1),32)]))
-    pick1[,i] <- Y[,i] == 1
-  }
-  pick <- rowSums(pick1) > 0
-  X1   <- matrix(X[pick,], ncol = (nloci+1))
-
-  if(!all(is.na(X1))){  # if there are unambiguous infections
-    n1 <- nrow(X1)
-    if(is.null(n1)){ # if there is only one unambiguous infection
-      n1 <- 1
-    }
-    X <- matrix(X1, nrow = n1)
-
-    # find indexes of multiple infections
-    pick <- rowSums(matrix(pick1[pick,]==0, ncol = 2)) == 1 
-    tmp2 <- matrix(X[pick,1:nloci], ncol = nloci)
-    idx1 <- which(pick)
-
-    if(length(idx1)>0){
-      # single infections
-      tmp <- matrix(X[-idx1,], ncol = 3)
-      s <- cbind(tmp, tmp[,3])
-    }else {
-      s <- cbind(X, X[,3])
-    }
-
-    # Single infections to corresponding haplotypes
-    for(i in 1:2){
-      s[,i] <- sapply((s[,i]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[i]+1),32)]==1)-1)
-    }
-
-    # Saving single infections
-    s1 <- matrix(s[,-4],ncol=3)
-
-    # find all the haplotypes in X
-    for(i in idx1){
-      y <- matrix(X[i,], ncol = 3, byrow = TRUE)
-      idx2 <- which(!(y[c(1,2)]+1)%in%2^(0:max(arch)))
-      y2 <- y[idx2]+1
-      all <- which(as.integer(intToBits(y2))[-seq((arch[idx2]+1),32)]==1)-1
-      nl <- length(all)
-      h <- matrix(rep(c(y,y[,3]/nl),length(all)), ncol=4, byrow = TRUE)
-      h[,idx2] <- all
-      idx3 <- c(1,2)[-idx2] 
-      h[,idx3] <- sapply((h[,idx3]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[idx3]+1),32)]==1)-1)
-      # add haplotypes in s
-      s <- rbind(s,h)
-    }
-    
-    # binary representation
-    bin <- c(arch[2],1)
-    pp  <- s[,1:2]%*%bin+1
-    pp  <- cbind(pp,s[,3:4])
-    pp1  <- s1[,1:2]%*%bin+1
-    pp1  <- cbind(pp1,s1[,3])
-
-    # observed haplotypes
-    idx3 <- as.integer(colnames(t(as.data.frame(summary.factor(pp[,1])))))
-    idx5 <- as.integer(colnames(t(as.data.frame(summary.factor(pp1[,1])))))
-    
-    # Frequencies estimates Method 1
-    p <- matrix(0, ncol=length(idx3), nrow = 3)
-    tot <- colSums(pp[,2:3])
-    for (i in idx3){
-      idx4 <- which(pp[,1]==i)
-      p[1:2,which(i==idx3)] <- colSums(matrix(pp[idx4,2:3],ncol=2))/tot
-    }
-    for (i in idx5){
-      idx6 <- which(pp1[,1]==i)
-      p[3,which(i==idx3)] <- sum(pp1[idx6,2])/sum(pp1[,2])
-    }
-      colnames(p) <-  idx3
-  }else{
-    # Frequencies estimates
-    p <- matrix(0, ncol=nhpl)
-  }
-
-  list(p[1,], p[2,], p[3,])
-}
-
-adhocfreqmodelsim <- function(X, Nx, arch){
-  
-  XX     <- cbind(X, Nx)
-  n     <- ncol(X)
-  nloci <- n
-
-  # number of haplotypes
-  nhpl <- prod(arch)
-  
-  # extract unambiguous observations
-  bin <- list(2^(0:arch[1]), 2^(0:arch[2]))
-  Y <-  XX[,1:2]+1  
-  pick1 <- Y
-  for(i in 1:2){
-    Y[,i] <- sapply((Y[,i]), function(x) sum(as.integer(intToBits(x))[-seq((arch[i]+1),32)]))
-    pick1[,i] <- Y[,i] == 1
-  }
-  pick <- rowSums(pick1) > 0
-  X1   <- matrix(XX[pick,], ncol = (nloci+1))
-
-  if(!all(is.na(X1))){  # if there are unambiguous infections
-    n1 <- nrow(X1)
-    if(is.null(n1)){ # if there is only one unambiguous infection
-      n1 <- 1
-    }
-    XX <- matrix(X1, nrow = n1)
-
-    # find indexes of multiple infections
-    pick <- rowSums(matrix(pick1[pick,]==0, ncol = 2)) == 1 
-    #tmp2 <- matrix(XX[pick,1:nloci], ncol = nloci)
-    idx1 <- which(pick)
-
-    if(length(idx1)>0){
-      # single infections
-      tmp <- matrix(XX[-idx1,], ncol = 3)
-      s <- cbind(tmp, tmp[,3])
-    }else {
-      s <- cbind(XX, XX[,3])
-    }
-
-    # Single infections to corresponding haplotypes
-    for(i in 1:2){
-      s[,i] <- sapply((s[,i]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[i]+1),32)]==1)-1)
-    }
-
-    # Saving single infections
-    s1 <- matrix(s[,-4],ncol=3)
-
-    # find all the haplotypes in XX
-    for(i in idx1){
-      y <- matrix(XX[i,], ncol = 3, byrow = TRUE)
-      idx2 <- which(!(y[c(1,2)]+1)%in%2^(0:max(arch)))
-      y2 <- y[idx2]+1
-      all <- which(as.integer(intToBits(y2))[-seq((arch[idx2]+1),32)]==1)-1
-      nl <- length(all)
-      h <- matrix(rep(c(y,y[,3]/nl),length(all)), ncol=4, byrow = TRUE)
-      h[,idx2] <- all
-      idx3 <- c(1,2)[-idx2] 
-      h[,idx3] <- sapply((h[,idx3]+1), function(x) which(as.integer(intToBits(x))[-seq((arch[idx3]+1),32)]==1)-1)
-      # add haplotypes in s
-      s <- rbind(s,h)
-    }
-    
-    # binary representation
-    bin <- c(arch[2],1)
-    pp  <- s[,1:2]%*%bin+1
-    pp  <- cbind(pp, matrix(s[,3:4], ncol = 2))  #cbind(pp,s[,3:4])   # frequencies from uambiguous observations, assuming (i) non-weighted, (ii) weighted
-    pp1  <- s1[,1:2]%*%bin+1
-    pp1  <- cbind(pp1,s1[,3])  # frequencies from single infections
-
-    # observed haplotypes
-    idx3 <- as.integer(colnames(t(as.data.frame(summary.factor(pp[,1])))))
-    idx5 <- as.integer(colnames(t(as.data.frame(summary.factor(pp1[,1])))))
-    
-    # Frequencies estimates Method 1
-    p <- matrix(0, ncol=length(idx3), nrow = 3)
-    tot <- colSums(matrix(pp[,2:3], ncol = 2))
-    for (i in idx3){
-      idx4 <- which(pp[,1]==i)
-      p[1:2,which(i==idx3)] <- colSums(matrix(pp[idx4,2:3],ncol=2))/tot
-    }
-    for (i in idx5){
-      idx6 <- which(pp1[,1]==i)
-      p[3,which(i==idx3)] <- sum(pp1[idx6,2])/sum(pp1[,2])
-    }
-      colnames(p) <-  idx3
-  }else{
-    # Frequencies estimates
-    p <- matrix(0, ncol=nhpl)
-  }
-
-  ## Ordering the frequencies 
-  p <- list(p[1,], p[2,], p[3,])
-
-  for(i in 1:3){
-    pp <- p[[i]]
-    pp <- matrix(pp[order(as.integer(idx3))], nrow = 1)
-    colnames(pp) <- idx3
-
-    if(length(pp)<nhpl){
-      name <- colnames(pp)
-      cnt <- 0
-      for (j in 1:nhpl) {
-        if (!(j%in%name)){
-          pp <- append(pp,0.0,after=j-1)
-        }
-      }
-    }
-    p[[i]] <- pp
-  }
-  p
-}
-
-#################################
 # The function sampl(dat) finds the number of occurences of each observation in the dataset dat.
 # The output is a vector of those numbers.
 #################################
@@ -987,173 +742,6 @@ sampl <- function(dat, arch){
     trin <- rev((2^arch-1)^c(0,1)) # vector of geadic representaion
     out <- table(as.matrix(dat, ncol=nloci)%*%trin + 1)
     out
-}
-
-#################################
-# The function estunobsprev(estim) calculates the unobservable prevalence of the haplotypes.
-# The input is the MLEs obtained by the function estsnpmodel(X, Nx).
-#################################
-estunobsprev <- function(estim){
-  # This function estimates the unobservable prevalence as defined in the manuscript of tsoungui et.al, titled
-  # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from SNPs data"
-
-    ## For each set of estimates, compute prevalence
-    prev <- (exp(estim[[1]]) - exp(1-estim[[2]])^estim[[1]])/(exp(estim[[1]])-1)
-    
-    prev
-}
-
-#################################
-# The function estcondprev(estim) calculates the prevalence of the haplotypes conditioned on.
-# unambiguous observations. The input is the MLEs obtained by the function estsnpmodel(X, Nx).
-#################################
-estcondprev <- function(estim, arch){
-  # This function estimates the unambiguous prevalence as defined in the manuscript of tsoungui et.al, titled
-  # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of 
-  # infection from SNPs data"
-
-    # Number of loci
-    numb_Loci <- 2
-
-    # Table of all possible haplotypes
-    Hapl <- hapl(arch)
-
-    # Cardinality of Uh
-    cardUh <- sum(arch)-1
-
-    cnames <- colnames(t(estim[[2]]))
-
-    ## Access the estimates
-    tmp2 <- estim[[2]]
-    pickhap <- estim[[3]]%*%c(arch[2],1)+1
-
-    nHapl <- length(pickhap)
-
-    prev <- matrix(0, ncol = nHapl)
-    colnames(prev) <- cnames
-    numh <- rep(0, nHapl)
-    denh <- rep(0, nHapl)
-
-    # Find ambiguous prevalence for each observed haplotype
-    for (idx in pickhap[,1]){ 
-        # Build uh
-        uh <- setUh(Hapl[idx,], cardUh, arch)
-
-        # Indexes of haplotypes forming unambiguous observations with h (Uh)
-        pick1 <- uh%*%c(arch[2],1)+1
-
-        ## Pick the right frequencies estimates 
-        pickh <- which(pickhap == pick1[1])
-        GPh   <- gen_func(tmp2[pickh], estim[[1]])
-
-        # Picking haplotypes in Uh with non zero frequencies
-        pick2 <- which(pickhap%in%pick1) # indices of observed haplotypes in uh
-        tmp3 <- rep(0, cardUh)
-        tmp3[which(pick1%in%pickhap)] <- tmp2[pick2]
-        rem <- which(tmp3==tmp2[pickh])[1]
-        tmp3 <- tmp3[-rem]
-        i <- which(idx==pickhap)
-        for(j in 1:(cardUh-1)){ 
-            GPartFreq  <- gen_func(tmp3[j], estim[[1]])
-            GFreq      <- gen_func(sum(c(tmp2[pickh],tmp3[j])), estim[[1]])
-            tmp        <- GFreq - GPartFreq
-            numh[i]    <- numh[i] + tmp
-            denh[i]    <- denh[i] + tmp/2
-        }
-        numh[i] <- numh[i] - ((cardUh-1) - 1)*GPh
-        denh[i] <- denh[i] - ((cardUh-1)/2 - 1)*GPh
-    }
-    for(q in 1:nHapl){
-        prev[,q] <- numh[q]/sum(denh)
-    }
-    colnames(prev) <- cnames
-    prev
-}
-
-#################################
-# The function estrelprev(df,id) wraps the functions reform(df,id) and adhocmodel(X, Nx) to calculate 
-#  the relative prevalence of the haplotypes conditionned on unambiguous observations.
-#################################
-estrelprev <- function(df, id = TRUE){
-    # This function removes the ID column if there is one,
-    # then it derives the number of time each observation is made in the dataset,
-    # finally, the MLE are obtained and return in a list.
-
-    dat1 <- reform(df, id=TRUE)
-    X <- dat1[[1]]
-    Nx <- dat1[[2]]
-    nloci <- ncol(X)
-
-    # MLEs
-    out <- adhocmodel(X, Nx)
-    cnames <- as.integer(colnames(out)) - 1
-    nh <- length(cnames)
-    dat <- array(0,c(nh,nloci))
-    for(k in 0:(nloci-1)){ #for each locus
-        re <- cnames%%(2^(nloci-k-1))
-        dat[,nloci-k] <- (cnames-re)/(2^(nloci-k-1))
-        cnames <- re
-    } 
-    for(i in 1:nh){
-        cnames[i] <- paste(dat[i,], collapse = '')
-    }
-    colnames(out) <- cnames
-    out
-}
-
-#################################
-# The function adhocLDmodel(X,Nx) calculates the strength of pairwise Linkage-disequilibrium using the D' r^2, and Q*
-# measures for multi-allelic loci.
-#################################
-adhocLDsim <- function(freq, gen){
-  # This function implements the true linkage disequilibrium measures (D', r^2, Q*) as defined in the manuscript of Tsoungui & Schneider, titled
-  # "A maximum-likelihood method to estimate haplotype frequencies and prevalence alongside multiplicity of infection from STR data"
-
-  pmat  <- matrix(freq, gen, byrow = TRUE)
-  Afreq <- rowSums(pmat)
-  Bfreq <- colSums(pmat)
-
-  idxA <- Afreq != 0
-  idxB <- Bfreq != 0
-  gen_new <- c(sum(idxA), sum(idxB))
-
-  pmatnew  <- pmat[idxA, idxB]
-  freqnew  <- matrix(freq, nrow = gen[1], byrow = TRUE)[idxA, idxB]
-  Afreqnew <- Afreq[idxA]
-  Bfreqnew <- Bfreq[idxB]
-
-  pij   <- Afreqnew%*%t(Bfreqnew)        # pipj
-  picjc <- (1-Afreqnew)%*%t(1-Bfreqnew)  # (1-pi)(1-pj)
-  picj  <- (1-Afreqnew)%*%t(Bfreqnew)    # (1-pi)pj
-  pijc  <- Afreqnew%*%t(1-Bfreqnew)      # pi(1-pj)
-
-  D     <- round(freqnew - pij, 5)       # Dij
-  pick  <- D > 0
-
-  D_pos       <- array(0, gen_new)
-  D_pos[pick] <- D[pick]
-
-  D_neg        <- array(0, gen_new)
-  D_neg[!pick] <- D[!pick]
-
-  Dmax_pos  <- D
-  Dmax_neg  <- D
-
-  Dmax_pos  <- do.call(pmin, list(picj, pijc))  # if Dij > 0
-  Dmax_neg  <- do.call(pmin, list(pij, picjc))  # if Dij < 0
-
-  pij_pos       <- array(0, gen_new)
-  pij_pos[pick] <- pij[pick]
-
-  pij_neg        <- array(0, gen_new)
-  pij_neg[!pick] <- pij[!pick]
-
-  Dp <- sum(pij_pos*D_pos/Dmax_pos) + sum(pij_neg*abs(D_neg)/Dmax_neg) # D'
-  tmp_sum <- sum(D^2/pij)
-  r  <- sum(D^2)/((1-sum(Afreqnew**2))*(1-sum(Bfreqnew**2))) # D* # tmp_sum/min(gen-1)     # r^2
-  Q  <- tmp_sum/prod(gen-1)    # Q*
-  
-  list(Dp, r, Q)
 }
 
 ldestim0 <- function(est, gen){
@@ -1215,14 +803,13 @@ ldestim0 <- function(est, gen){
   list(Dp, r, Q)
 }
 
-ldestim <- function(Data, arch, plugin=NULL, id=TRUE, CI=FALSE, B=10000, alpha=0.05){
+ldestim <- function(Data, arch, id = TRUE, plugin=NULL, CI=FALSE, B=10000, alpha=0.05){
   dat1  <- reform(Data, arch, id=id)
   X     <- dat1[[1]]
   Nx    <- dat1[[2]]
-  #nloci <- 2 #ncol(X)
 
   # MLEs
-  est <- mle(Data, arch, id=FALSE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=100, B=100, alpha=0.05) #strmodel(dat1, arch, BC=FALSE, method=method, Bbias=FALSE, plugin=plugin)
+  est <- mle(Data, arch, id=id, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=100, B=100, alpha=0.05)
   ldvals <- ldestim0(est, arch)
   # Bootstrap CIs
   if(CI){
@@ -1245,9 +832,11 @@ ldestim <- function(Data, arch, plugin=NULL, id=TRUE, CI=FALSE, B=10000, alpha=0
     Estim <- Estim[ , colSums(is.na(Estim))==0]
     perc <- t(apply(Estim, 1, quantile, c(alpha/2, (1-alpha/2))))
     out <- cbind(ldvals,perc)
-    rownames(out) <- c("D'", expression(r^2), "Q")
+    rownames(out) <- c("D'", bquote(r^2), "Q*")
+    colnames(out) <- c('', paste0(as.character((alpha/2)*100), '%'), paste0(as.character((1-alpha/2)*100), '%')) 
   }else{
     out <- ldvals
+    names(out) <- c("D'", expression(r^2), "Q*")
   }
   out
 }
