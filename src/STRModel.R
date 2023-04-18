@@ -781,35 +781,39 @@ ldestim0 <- function(est, gen){
   pijc  <- Afreqnew%*%t(1-Bfreqnew)      # pi(1-pj)
 
   D     <- freqnew - pij #round(freqnew - pij, 5)       # Dij
-  pick  <- D > 0
+  if(gen[1]==1 && gen[1]-gen[2]==0 && D[,1]==0){
+    list(1, 1, 1, 1)
+  }else{
+    pick  <- D > 0
 
-  D_pos       <- array(0, gen_new)
-  D_pos[pick] <- D[pick]
+    D_pos       <- array(0, gen_new)
+    D_pos[pick] <- D[pick]
 
-  D_neg        <- array(0, gen_new)
-  D_neg[!pick] <- D[!pick]
+    D_neg        <- array(0, gen_new)
+    D_neg[!pick] <- D[!pick]
 
-  Dmax_pos  <- D
-  Dmax_neg  <- D
+    Dmax_pos  <- D
+    Dmax_neg  <- D
 
-  Dmax_pos  <- do.call(pmin, list(picj, pijc))  # if Dij > 0
-  Dmax_neg  <- do.call(pmin, list(pij, picjc))  # if Dij < 0
+    Dmax_pos  <- do.call(pmin, list(picj, pijc))  # if Dij > 0
+    Dmax_neg  <- do.call(pmin, list(pij, picjc))  # if Dij < 0
 
-  pij_pos       <- array(0, gen_new)
-  pij_pos[pick] <- pij[pick]
+    pij_pos       <- array(0, gen_new)
+    pij_pos[pick] <- pij[pick]
 
-  pij_neg        <- array(0, gen_new)
-  pij_neg[!pick] <- pij[!pick]
+    pij_neg        <- array(0, gen_new)
+    pij_neg[!pick] <- pij[!pick]
 
-  Dp <- sum(pij_pos*D_pos/Dmax_pos) + sum(pij_neg*abs(D_neg)/Dmax_neg) # D'
-  tmp_sum <- sum(D^2/pij)
-  HA <- 1-sum(Afreqnew**2)
-  HB <- 1-sum(Bfreqnew**2)
-  r  <- sum(D^2)/(HA*HB) # D* # tmp_sum/min(gen-1)     # r^2
-  Q  <- tmp_sum/prod(gen-1)    # Q*
-  ald <- sqrt(sum(D^2 / Afreqnew)/HB)
-  
-  list(Dp, r, Q, ald)
+    Dp <- sum(pij_pos*D_pos/Dmax_pos) + sum(pij_neg*abs(D_neg)/Dmax_neg) # D'
+    tmp_sum <- sum(D^2/pij)
+    HA <- 1-sum(Afreqnew**2)
+    HB <- 1-sum(Bfreqnew**2)
+    r  <- sum(D^2)/(HA*HB) # D* # tmp_sum/min(gen-1)     # r^2
+    Q  <- tmp_sum/prod(gen-1)    # Q*
+    ald <- sqrt(sum(D^2 / Afreqnew)/HB)
+
+    list(Dp, r, Q, ald)
+  }
 }
 
 ldestim <- function(Data, arch, id = TRUE, plugin=NULL, CI=FALSE, B=10000, alpha=0.05){
