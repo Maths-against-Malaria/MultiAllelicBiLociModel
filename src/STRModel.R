@@ -810,9 +810,10 @@ ldestim0 <- function(est, gen){
     HB <- 1-sum(Bfreqnew**2)
     r  <- sum(D^2)/(HA*HB) # D* # tmp_sum/min(gen-1)     # r^2
     Q  <- tmp_sum/prod(gen-1)    # Q*
-    ald <- sqrt(sum(D^2 / Afreqnew)/HB)
+    wab <- sqrt(sum(D^2 / Afreqnew)/HB)
+    wba <- sqrt(sum(D^2 / Bfreqnew)/HA)
 
-    list(Dp, r, Q, ald)
+    list(Dp, r, Q, wab, wba)
   }
 }
 
@@ -828,7 +829,7 @@ ldestim <- function(Data, arch, id = TRUE, plugin=NULL, CI=FALSE, B=10000, alpha
   if(CI){
     N     <- sum(Nx)
     prob  <- Nx/N
-    Estim <- array(0, dim = c(4, B))
+    Estim <- array(0, dim = c(5, B))
     for (l in 1:B){
       infct <- vector(mode = "list", length = 2)
       samp  <- rmultinom(N, 1, prob)
@@ -845,11 +846,11 @@ ldestim <- function(Data, arch, id = TRUE, plugin=NULL, CI=FALSE, B=10000, alpha
     Estim <- Estim[ , colSums(is.na(Estim))==0]
     perc <- t(apply(Estim, 1, quantile, c(alpha/2, (1-alpha/2))))
     out <- cbind(ldvals,perc)
-    rownames(out) <- c("D'", bquote(r^2), "Q*", "ALD")
+    rownames(out) <- c("D'", bquote(r^2), "Q*", expression(W[A|B]), expression(W[B|A]))
     colnames(out) <- c('', paste0(as.character((alpha/2)*100), '%'), paste0(as.character((1-alpha/2)*100), '%')) 
   }else{
     out <- ldvals
-    names(out) <- c("D'", expression(r^2), "Q*", "ALD")
+    names(out) <- c("D'", expression(r^2), "Q*", expression(W[A|B]), expression(W[B|A]))
   }
   out
 }

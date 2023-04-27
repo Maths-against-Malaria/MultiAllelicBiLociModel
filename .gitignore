@@ -47,3 +47,5 @@ vignettes/*.pdf
 ./src/plot.R
 ./src/simulationSimData.R
 ./src/STRLDPlots.R
+MultiAllelicBiLociModel.Rproj
+src/.DS_Store
