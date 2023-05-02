@@ -782,7 +782,7 @@ ldestim0 <- function(est, gen){
 
   D     <- freqnew - pij #round(freqnew - pij, 5)       # Dij
   if(gen[1]==1 && gen[1]-gen[2]==0 && D[,1]==0){
-    list(1, 1, 1, 1)
+    list(NA, NA, NA, NA) #list(1, 1, 1, 1)
   }else{
     pick  <- D > 0
 
