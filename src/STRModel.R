@@ -132,6 +132,48 @@ obs <- function(M, arch){
 }
 
 #################################
+### function data.format outputs a list containing as first element  the data in new format (1 row per sample, 1 colum by marker) 
+### entries are integerers. If transformed into binary numbers 0-1 vectors they indicate absence/presence of alleles 
+### e.g., 0.... no allele present, 1... first allele present, 2... 2nd allele present, 3.... 1st and 2nd allele present ect. 
+### The second element gives the order of the alleles pper locus
+### The third element gives th number of alleles per locucs
+#################################
+data.format <- function(dat,markers){
+    ### dat... is the input data set in standard format of package MLMOI, 1 st column contains smaple IDs
+    ### markers ... vector of columms containing markers to be included
+
+    ### list of alleles per marker. This function, oders alleles such that allele "51I" comes befor "N51 for instance.
+    ### As a result, for SNPS loci, mutants are denoted by 1 and the wildtypes are denoted by 2 in the conversion. Note 
+    ### that in the converted dataset, 0 characterizes missing values.
+    ############
+    allele.list <- sapply(as.list(dat[,markers]), function(x){ 
+                                                        y=sort(unique(x))
+                                                        y[!is.na(y)]
+                                                    }
+                        )
+                   
+    ###number of alleles per marker########
+    allele.num <- unlist(lapply(allele.list,length))
+
+    #### split data b sample ID
+    dat.split <- split(dat[,markers],dat[,1])
+
+    #### Binary representation of allele being absent and present
+    samples.coded <- t(sapply(dat.split, function(x){
+                                                      mapply(function(x,y,z){
+                                                                              as.integer(is.element(y,x)) %*% 2^(0:(z-1))
+                                                                            }, 
+                                                              x, 
+                                                              allele.list, 
+                                                              allele.num
+                                                            )
+                                                    }
+                              )
+                      )
+    list(samples.coded,allele.list,allele.num)
+}
+
+#################################
 # Function datasetgen(P,lambda,N,n) is used to simulate data. It generates N observations assuming n biallelic loci with haplotype distribution P 
 # wich must be a vector of length 2n a N x n matrix of observations sampled using the multinomial and Poisson distribution 
 # of parameters (m, P) and lambda respectively. m is the MOI for the corresponding sample.
@@ -576,6 +618,27 @@ strmodel <- function(dat, arch, BC=FALSE, method='bootstrap', Bbias=10000, plugi
 # The function reform(X1,id) takes as input the dataset in the 0-1-2-notation and returns a matrix of the observations,
 # and a vector of the counts of those observations, i.e., number of times each observation is made in the dataset.
 #################################
+reform0 <- function(data, markers){
+  DATA <- data[[1]][,markers]
+  num.alleles <- data[[3]][markers]
+  data.comp <- apply(DATA, 1, function(x) paste(x,collapse="-"))
+  Nx <- table(data.comp)
+  Nx.names <- names(Nx)
+  X <- t(sapply(Nx.names, function(x) unlist(strsplit(x,"-")) ))
+  rownames(X) <- NULL
+  X2 <- array(as.numeric(X), dim(X))
+
+  # Selecting infections with no missing data, i.e., no 0
+  sel <- rowSums(X2==0)==0  
+  Nx1 <- Nx[sel]
+  X1 <- X2[sel,]
+
+  trin <- rev((2^num.alleles-1)^c(0,1)) # vector of geadic representaion for observations
+  names(Nx1) <- c(as.matrix((X1-1), ncol=2)%*%trin + 1)
+
+  list(X1-1, Nx1)
+}
+
 reform <- function(DATA, arch, id = TRUE){
     # This function formats the data for the MLE function
     # Remove the id column
@@ -749,15 +812,14 @@ sampl <- function(dat, arch){
 # The esimates can be obtained with or without the Poisson parameter as a plug-in estimate, respectively. Moreover, the option to ouput the bias corrected (BC) estimates with 
 # confidence intervals (CI) is available. The function outputs the estimates of common LD measures, i.e., D', r-squared, and Q-star..
 #################################
-
 ldestim0 <- function(est, gen){
   # Ordering frequencies estimates from 1 to H=n1*n2. The ordering is necessary to obtain the alleles marginal frequencies.
   freq <- array(0, c(1,prod(gen)))
   frequ <- est$p
-  trin <- rev((gen)^c(0,1)) #gen^c(1,0)
+  trin <- rev((gen)^c(0,1)) # vector of geadic representaion for haplotypes
   hap <- est$haplotypes%*%trin + 1
   colnames(frequ) <- hap
-  for(i in hap){
+  for(i in hap){  # Because haplotypes with 0 frequency estimate are not reported in the MLEs, we need to reorder the estimates properly.
     idx <- which(colnames(frequ) == i)
     freq[,i] <- frequ[,idx]
   }
@@ -781,40 +843,36 @@ ldestim0 <- function(est, gen){
   pijc  <- Afreqnew%*%t(1-Bfreqnew)      # pi(1-pj)
 
   D     <- freqnew - pij #round(freqnew - pij, 5)       # Dij
-  if(gen[1]==1 && gen[1]-gen[2]==0 && D[,1]==0){
-    list(NA, NA, NA, NA) #list(1, 1, 1, 1)
-  }else{
-    pick  <- D > 0
+  pick  <- D > 0
 
-    D_pos       <- array(0, gen_new)
-    D_pos[pick] <- D[pick]
+  D_pos       <- array(0, gen_new)
+  D_pos[pick] <- D[pick]
 
-    D_neg        <- array(0, gen_new)
-    D_neg[!pick] <- D[!pick]
+  D_neg        <- array(0, gen_new)
+  D_neg[!pick] <- D[!pick]
 
-    Dmax_pos  <- D
-    Dmax_neg  <- D
+  Dmax_pos  <- D
+  Dmax_neg  <- D
 
-    Dmax_pos  <- do.call(pmin, list(picj, pijc))  # if Dij > 0
-    Dmax_neg  <- do.call(pmin, list(pij, picjc))  # if Dij < 0
+  Dmax_pos  <- do.call(pmin, list(picj, pijc))  # if Dij > 0
+  Dmax_neg  <- do.call(pmin, list(pij, picjc))  # if Dij < 0
 
-    pij_pos       <- array(0, gen_new)
-    pij_pos[pick] <- pij[pick]
+  pij_pos       <- array(0, gen_new)
+  pij_pos[pick] <- pij[pick]
 
-    pij_neg        <- array(0, gen_new)
-    pij_neg[!pick] <- pij[!pick]
+  pij_neg        <- array(0, gen_new)
+  pij_neg[!pick] <- pij[!pick]
 
-    Dp <- sum(pij_pos*D_pos/Dmax_pos) + sum(pij_neg*abs(D_neg)/Dmax_neg) # D'
-    tmp_sum <- sum(D^2/pij)
-    HA <- 1-sum(Afreqnew**2)
-    HB <- 1-sum(Bfreqnew**2)
-    r  <- sum(D^2)/(HA*HB) # D* # tmp_sum/min(gen-1)     # r^2
-    Q  <- tmp_sum/prod(gen-1)    # Q*
-    wab <- sqrt(sum(D^2 / Afreqnew)/HB)
-    wba <- sqrt(sum(D^2 / Bfreqnew)/HA)
+  Dp <- sum(pij_pos*D_pos/Dmax_pos) + sum(pij_neg*abs(D_neg)/Dmax_neg) # D'
+  tmp_sum <- sum(D^2/pij)
+  HA <- 1-sum(Afreqnew**2)
+  HB <- 1-sum(Bfreqnew**2)
+  r  <- sum(D^2)/(HA*HB) # D* # tmp_sum/min(gen-1)     # r^2
+  Q  <- tmp_sum/prod(gen-1)    # Q*
+  wab <- sqrt(sum(D^2 / Afreqnew)/HB)
+  wba <- sqrt(sum(D^2 / Bfreqnew)/HA)
 
-    list(Dp, r, Q, wab, wba)
-  }
+  list(Dp, r, Q, wab, wba)
 }
 
 ldestim <- function(Data, arch, id = TRUE, plugin=NULL, CI=FALSE, B=10000, alpha=0.05){

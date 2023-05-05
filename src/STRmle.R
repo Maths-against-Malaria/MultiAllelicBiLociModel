@@ -13,7 +13,8 @@ install.packages('openxlsx')   # Comment this line if openxlsx installed
 library(openxlsx)
 
 # Import the dataset
-DATA <- read.xlsx('/home/janedoe/Documents/datasets/example_dataset1.xlsx', 1)
+DATA <- read.xlsx('/Users/christian/Library/CloudStorage/GoogleDrive-christian.tsoungui@aims-cameroon.org/.shortcut-targets-by-id/1Ulru-DjbFRaMVB7Vj9tJ4NfyzPDkhzOr/Maths against Malaria/Christian/Models/MultiAllelicBiLociModel/datasets/example_dataset1.xlsx', 1)
+
 
 # Load external resources
 source("/home/janedoe/Documents/src/STRmodel.R")
