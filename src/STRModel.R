@@ -1,8 +1,8 @@
 # Title        : MLE method for SNPs data
 # Objective    : Contains implementation of the model (EM-algorithm) and supporting functions
 # Created by   : Christian Tsoungui Obama, Kristan. A. Schneider
-# Created on   : 05.05.22
-# Last modified: 14.03.23
+# Created on   : 24.05.23
+# Last modified: 24.05.23
 
 #################################
 # Function varsets(n,l) outputs all possible vectors of length n with entries 0,.., l-1
@@ -129,48 +129,6 @@ obs <- function(M, arch){
     out[i] <- bin %*% binx - 1
   }
   out
-}
-
-#################################
-### function data.format outputs a list containing as first element  the data in new format (1 row per sample, 1 colum by marker) 
-### entries are integerers. If transformed into binary numbers 0-1 vectors they indicate absence/presence of alleles 
-### e.g., 0.... no allele present, 1... first allele present, 2... 2nd allele present, 3.... 1st and 2nd allele present ect. 
-### The second element gives the order of the alleles pper locus
-### The third element gives th number of alleles per locucs
-#################################
-data.format <- function(dat,markers){
-    ### dat... is the input data set in standard format of package MLMOI, 1 st column contains smaple IDs
-    ### markers ... vector of columms containing markers to be included
-
-    ### list of alleles per marker. This function, oders alleles such that allele "51I" comes befor "N51 for instance.
-    ### As a result, for SNPS loci, mutants are denoted by 1 and the wildtypes are denoted by 2 in the conversion. Note 
-    ### that in the converted dataset, 0 characterizes missing values.
-    ############
-    allele.list <- sapply(as.list(dat[,markers]), function(x){ 
-                                                        y=sort(unique(x))
-                                                        y[!is.na(y)]
-                                                    }
-                        )
-                   
-    ###number of alleles per marker########
-    allele.num <- unlist(lapply(allele.list,length))
-
-    #### split data b sample ID
-    dat.split <- split(dat[,markers],dat[,1])
-
-    #### Binary representation of allele being absent and present
-    samples.coded <- t(sapply(dat.split, function(x){
-                                                      mapply(function(x,y,z){
-                                                                              as.integer(is.element(y,x)) %*% 2^(0:(z-1))
-                                                                            }, 
-                                                              x, 
-                                                              allele.list, 
-                                                              allele.num
-                                                            )
-                                                    }
-                              )
-                      )
-    list(samples.coded,allele.list,allele.num)
 }
 
 #################################
@@ -618,27 +576,6 @@ strmodel <- function(dat, arch, BC=FALSE, method='bootstrap', Bbias=10000, plugi
 # The function reform(X1,id) takes as input the dataset in the 0-1-2-notation and returns a matrix of the observations,
 # and a vector of the counts of those observations, i.e., number of times each observation is made in the dataset.
 #################################
-reform0 <- function(data, markers){
-  DATA <- data[[1]][,markers]
-  num.alleles <- data[[3]][markers]
-  data.comp <- apply(DATA, 1, function(x) paste(x,collapse="-"))
-  Nx <- table(data.comp)
-  Nx.names <- names(Nx)
-  X <- t(sapply(Nx.names, function(x) unlist(strsplit(x,"-")) ))
-  rownames(X) <- NULL
-  X2 <- array(as.numeric(X), dim(X))
-
-  # Selecting infections with no missing data, i.e., no 0
-  sel <- rowSums(X2==0)==0  
-  Nx1 <- Nx[sel]
-  X1 <- X2[sel,]
-
-  trin <- rev((2^num.alleles-1)^c(0,1)) # vector of geadic representaion for observations
-  names(Nx1) <- c(as.matrix((X1-1), ncol=2)%*%trin + 1)
-
-  list(X1-1, Nx1)
-}
-
 reform <- function(DATA, arch, id = TRUE){
     # This function formats the data for the MLE function
     # Remove the id column
@@ -670,71 +607,7 @@ reform <- function(DATA, arch, id = TRUE){
 # with or without the Poisson parameter as a plug-in estimate, respectively. Moreover, the option to ouput the bias corrected (BC) estimates with 
 # confidence intervals (CI) is available. The function outputs the estimates for haplotype frequencies, Poisson parameters, and a matrix of detected haplotypes.
 #################################
-mle <-function(Data, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=10000, B=10000, alpha=0.05){
-  
-  dat1  <- reform(Data, arch, id=id)
-  X     <- dat1[[1]]
-  Nx    <- dat1[[2]]
-  nloci <- 2 #ncol(X)
-
-  # MLEs
-  out <- strmodel(dat1, arch, BC=BC, method=method, Bbias=Bbias, plugin=plugin)
-  trin <- rev((arch)^c(0,1)) # geadic representation
-  out2 <- out[[2]]
-  rnames1 <- as.integer(rownames(out2)) - 1
-  rnames <- rnames1
-  nh <- length(rnames)
-  dat <- array(0,c(nh,nloci))
-  for(k in 1:2){ #for each locus
-    re <- rnames%%trin[k]
-    dat[,k] <- (rnames-re)/trin[k]
-    rnames <- re
-  }
-  for(i in 1:nh){
-      rnames[i] <- paste(dat[i,], collapse = '')
-  }
-  rownames(out2) <- rnames
-
-  # Bootstrap CIs
-  if(CI){
-    nhap  <- length(out2)
-    N     <- sum(Nx)
-    prob  <- Nx/N
-    Estim <- array(0, dim = c((nhap+1), B))
-    rownames(Estim) <- c('l',(rnames1+1))
-    for (l in 1:B){
-      infct <- vector(mode = "list", length = 2)
-      samp  <- rmultinom(N, 1, prob)
-      tmp   <- rowSums(samp)
-      pick  <- tmp == 0
-      infct[[1]]  <- X[!pick,]
-      infct[[2]]  <- tmp[!pick]
-      tmp1        <- strmodel(infct, arch, BC=BC, method=method, Bbias=Bbias, plugin=plugin)
-      rnames      <- as.integer(rownames(tmp1[[2]]))
-      Estim[1,l]  <- unlist(tmp1[[1]])  
-      Estim[as.character(rnames),l] <- unlist(tmp1[[2]])                             ## Evaluating and saving the Estimates
-    }
-    perc <- t(apply(Estim, 1, quantile, c(alpha/2, (1-alpha/2))))
-    if(is.null(plugin)){
-      out3 <- c(unlist(out[[1]]), perc[1,])
-      names(out3) <- c('', paste0(as.character((alpha/2)*100), '%'), paste0(as.character((1-alpha/2)*100), '%')) 
-    }else{
-      out3 <- out[[1]]
-      names(out3) <- c('')
-    }
-    out4 <- cbind(out2,perc[2:(nhap+1),])
-
-    out <- list(out3, out4, dat)
-  }else{
-    out1 <- out[[1]]
-    names(out1) <- c('')
-    out <- list(out1, t(out2), dat)
-  }
-  names(out) <- c(expression(lambda), 'p', 'haplotypes')
-  out
-}
-
-mle2 <-function(dat1, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=10000, B=10000, alpha=0.05){
+mle <-function(dat1, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=10000, B=10000, alpha=0.05){
   
   X     <- dat1[[1]]
   Nx    <- dat1[[2]]
@@ -872,17 +745,21 @@ ldestim0 <- function(est, gen){
   wab <- sqrt(sum(D^2 / Afreqnew)/HB)
   wba <- sqrt(sum(D^2 / Bfreqnew)/HA)
 
-  list(Dp, r, Q, wab, wba)
+  out <- list(Dp, r, Q, wab, wba)
+  names(out) <- c("D'", expression(r^2), "Q*", expression(W[A|B]), expression(W[B|A]))
+  out
 }
 
-ldestim <- function(Data, arch, id = TRUE, plugin=NULL, CI=FALSE, B=10000, alpha=0.05){
+ld <- function(Data, arch, id = TRUE, plugin=NULL, CI=FALSE, B=10000, alpha=0.05){
+
   dat1  <- reform(Data, arch, id=id)
   X     <- dat1[[1]]
   Nx    <- dat1[[2]]
 
   # MLEs
-  est <- mle(Data, arch, id=id, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=100, B=100, alpha=0.05)
+  est <- mle(dat1, arch, id=id, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=100, B=100, alpha=0.05)
   ldvals <- ldestim0(est, arch)
+
   # Bootstrap CIs
   if(CI){
     N     <- sum(Nx)
@@ -895,9 +772,7 @@ ldestim <- function(Data, arch, id = TRUE, plugin=NULL, CI=FALSE, B=10000, alpha
       pick  <- tmp == 0
       infct[[1]]  <- X[!pick,]
       infct[[2]]  <- tmp[!pick]
-
-      #infct <- Data[samp,]
-      esttmp1     <- mle2(infct, arch, id=FALSE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=100, B=100, alpha=0.05)
+      esttmp1     <- mle(infct, arch, id=FALSE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=100, B=100, alpha=0.05)
       tmp1        <- ldestim0(esttmp1, arch)
       Estim[,l]  <- unlist(tmp1) 
     }
