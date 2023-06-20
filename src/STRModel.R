@@ -144,6 +144,7 @@ datasetgen <- function(P,lambda,N,arch){
     s <- rmultinom(1, m[j], P) #multinomially select M[j] haplotypes from the haplotype pool
     out[j,] <- obs(H[s!=0,], arch) #Summing up the trianary representation of a number representing the infection
   } #vector of infections
+  out <- out+1
   out
 }
 
@@ -562,7 +563,7 @@ strmodel <- function(dat, arch, BC=FALSE, method='bootstrap', Bbias=10000, plugi
 ### The second element gives the order of the alleles pper locus
 ### The third element gives th number of alleles per locucs
 #################################
-data.format <- function(dat, markers, id=TRUE){
+data_format <- function(dat, markers, id=TRUE){
     ### dat... is the input data set in standard format of package MLMOI, 1 st column contains smaple IDs
     ### markers ... vector of columms containing markers to be included
     # Remove the id column
@@ -605,27 +606,6 @@ data.format <- function(dat, markers, id=TRUE){
 # The function reform(X1,id) takes as input the dataset in the 0-1-2-notation and returns a matrix of the observations,
 # and a vector of the counts of those observations, i.e., number of times each observation is made in the dataset.
 #################################
-reform0 <- function(data, markers){
-  DATA <- data[[1]][,markers]
-  num.alleles <- data[[3]][markers]
-  data.comp <- apply(DATA, 1, function(x) paste(x,collapse="-"))
-  Nx <- table(data.comp)
-  Nx.names <- names(Nx)
-  X <- t(sapply(Nx.names, function(x) unlist(strsplit(x,"-")) ))
-  rownames(X) <- NULL
-  X2 <- array(as.numeric(X), dim(X))
-
-  # Selecting infections with no missing data, i.e., no 0
-  sel <- rowSums(X2==0)==0  
-  Nx1 <- Nx[sel]
-  X1 <- X2[sel,]
-
-  trin <- rev((2^num.alleles-1)^c(0,1)) # vector of geadic representaion for observations
-  names(Nx1) <- c(as.matrix((X1-1), ncol=2)%*%trin + 1)
-
-  list(X1-1, Nx1)
-}
-
 reform <- function(DATA, arch, id = TRUE){
     # This function formats the data for the MLE function
     # Remove the id column
