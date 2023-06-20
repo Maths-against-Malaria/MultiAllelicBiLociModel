@@ -18,7 +18,7 @@ path <- "/Users/christian/Library/CloudStorage/GoogleDrive-christian.tsoungui@ai
 DATA <- read.xlsx(paste0(path,'/datasets/example_dataset1.xlsx'), 1)
 
 # Load external resources
-source(paste0(path,'/src/STRmodel.R'))#("/home/janedoe/Documents/src/STRmodel.R")
+source(paste0(path,'/src/STRModel.R'))#("/home/janedoe/Documents/src/STRmodel.R")
 
 # Find MLEs (haplotype frequencies and MOI)
 mle(DATA, c(3,2), id = TRUE, plugin = NULL)
