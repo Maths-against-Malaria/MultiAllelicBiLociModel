@@ -187,23 +187,6 @@ gen_func <- function(x, lambd){
   (exp(x*lambd)-1)/(exp(lambd) - 1)
 }
 
-setUh <- function(haplo, cardUh, arch){
-  uh  <- t(array(rep(haplo, cardUh), dim = c(2, cardUh)))
-  idx <- which(arch==max(arch))
-  if(length(idx) > 1){
-    idx <- idx[1]
-  }
-  v1 <- 0:(arch[idx]-1)
-  v  <- v1[-which(v1==uh[1,idx])]
-  uh[2:(length(v)+1), idx] <- v
-  idx  <- which(1:2 !=idx)
-  idx2 <- length(v)+2
-  v2   <- 0:(arch[idx]-1)
-  v    <- v2[-which(v2==uh[1,idx])]
-  uh[idx2:cardUh, idx] <- v
-  uh
-}
-
 #################################
 # The function estsnpmodel(X,Nx) implements the EM algorithm and returns the MLEs, i.e., 
 # estimates of haplotype frequencies and Poisson parameter.
@@ -573,9 +556,76 @@ strmodel <- function(dat, arch, BC=FALSE, method='bootstrap', Bbias=10000, plugi
 }
 
 #################################
+### function data.format outputs a list containing as first element  the data in new format (1 row per sample, 1 colum by marker) 
+### entries are integerers. If transformed into binary numbers 0-1 vectors they indicate absence/presence of alleles 
+### e.g., 0.... no allele present, 1... first allele present, 2... 2nd allele present, 3.... 1st and 2nd allele present ect. 
+### The second element gives the order of the alleles pper locus
+### The third element gives th number of alleles per locucs
+#################################
+data.format <- function(dat, markers, id=TRUE){
+    ### dat... is the input data set in standard format of package MLMOI, 1 st column contains smaple IDs
+    ### markers ... vector of columms containing markers to be included
+    # Remove the id column
+    if(id){
+        dat <- dat[,-1]
+    }
+
+    ### list of alleles per marker. This function, oders alleles such that allele "51I" comes befor "N51 for instance.
+    ### As a result, for SNPS loci, mutants are denoted by 1 and the wildtypes are denoted by 2 in the conversion. Note 
+    ### that in the converted dataset, 0 characterizes missing values.
+    ############
+    allele.list <- sapply(as.list(dat[,markers]), function(x){ 
+                                                        y=sort(unique(x))
+                                                        y[!is.na(y)]
+                                                    }
+                        )
+                   
+    ###number of alleles per marker########
+    allele.num <- unlist(lapply(allele.list,length))
+
+    #### split data b sample ID
+    dat.split <- split(dat[,markers],dat[,1])
+
+    #### Binary representation of allele being absent and present
+    samples.coded <- t(sapply(dat.split, function(x){
+                                                      mapply(function(x,y,z){
+                                                                              as.integer(is.element(y,x)) %*% 2^(0:(z-1))
+                                                                            }, 
+                                                              x, 
+                                                              allele.list, 
+                                                              allele.num
+                                                            )
+                                                    }
+                              )
+                      )
+    list(samples.coded,allele.list,allele.num)
+}
+
+#################################
 # The function reform(X1,id) takes as input the dataset in the 0-1-2-notation and returns a matrix of the observations,
 # and a vector of the counts of those observations, i.e., number of times each observation is made in the dataset.
 #################################
+reform0 <- function(data, markers){
+  DATA <- data[[1]][,markers]
+  num.alleles <- data[[3]][markers]
+  data.comp <- apply(DATA, 1, function(x) paste(x,collapse="-"))
+  Nx <- table(data.comp)
+  Nx.names <- names(Nx)
+  X <- t(sapply(Nx.names, function(x) unlist(strsplit(x,"-")) ))
+  rownames(X) <- NULL
+  X2 <- array(as.numeric(X), dim(X))
+
+  # Selecting infections with no missing data, i.e., no 0
+  sel <- rowSums(X2==0)==0  
+  Nx1 <- Nx[sel]
+  X1 <- X2[sel,]
+
+  trin <- rev((2^num.alleles-1)^c(0,1)) # vector of geadic representaion for observations
+  names(Nx1) <- c(as.matrix((X1-1), ncol=2)%*%trin + 1)
+
+  list(X1-1, Nx1)
+}
+
 reform <- function(DATA, arch, id = TRUE){
     # This function formats the data for the MLE function
     # Remove the id column
@@ -607,8 +657,9 @@ reform <- function(DATA, arch, id = TRUE){
 # with or without the Poisson parameter as a plug-in estimate, respectively. Moreover, the option to ouput the bias corrected (BC) estimates with 
 # confidence intervals (CI) is available. The function outputs the estimates for haplotype frequencies, Poisson parameters, and a matrix of detected haplotypes.
 #################################
-mle <-function(dat1, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=10000, B=10000, alpha=0.05){
+mle <-function(Data, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=10000, B=10000, alpha=0.05){
   
+  dat1  <- reform(Data, arch, id=id)
   X     <- dat1[[1]]
   Nx    <- dat1[[2]]
   nloci <- 2 #ncol(X)
@@ -669,6 +720,7 @@ mle <-function(dat1, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="boo
   names(out) <- c(expression(lambda), 'p', 'haplotypes')
   out
 }
+
 #################################
 # The function sampl(dat) finds the number of occurences of each observation in the dataset dat.
 # The output is a vector of those numbers.
