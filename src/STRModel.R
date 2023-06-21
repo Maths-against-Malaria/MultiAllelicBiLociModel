@@ -563,7 +563,7 @@ strmodel <- function(dat, arch, BC=FALSE, method='bootstrap', Bbias=10000, plugi
 ### The second element gives the order of the alleles pper locus
 ### The third element gives th number of alleles per locucs
 #################################
-data_format <- function(dat, markers, id=TRUE){
+data_format0 <- function(dat, markers, id=TRUE){
     ### dat... is the input data set in standard format of package MLMOI, 1 st column contains smaple IDs
     ### markers ... vector of columms containing markers to be included
     # Remove the id column
@@ -586,6 +586,49 @@ data_format <- function(dat, markers, id=TRUE){
 
     #### split data b sample ID
     dat.split <- split(dat[,markers],dat[,1])
+
+    #### Binary representation of allele being absent and present
+    samples.coded <- t(sapply(dat.split, function(x){
+                                                      mapply(function(x,y,z){
+                                                                              as.integer(is.element(y,x)) %*% 2^(0:(z-1))
+                                                                            }, 
+                                                              x, 
+                                                              allele.list, 
+                                                              allele.num
+                                                            )
+                                                    }
+                              )
+                      )
+    list(samples.coded,allele.list,allele.num)
+}
+
+data_format <- function(data, id=TRUE){
+    ### dat... is the input data set in standard format of package MLMOI, 1 st column contains smaple IDs
+    ### markers ... vector of columms containing markers to be included
+    # Remove the id column
+    dat <- data
+    if(id){
+        dat <- data[,-1]
+    }
+
+    ### Turn data columns into factors
+    #dat <- apply(dat, 2, as.factor)
+
+    ### list of alleles per marker. This function, oders alleles such that allele "51I" comes befor "N51 for instance.
+    ### As a result, for SNPS loci, mutants are denoted by 1 and the wildtypes are denoted by 2 in the conversion. Note 
+    ### that in the converted dataset, 0 characterizes missing values.
+    ############
+    allele.list <- sapply(as.list(dat), function(x){ 
+                                                        y=sort(unique(x))
+                                                        y[!is.na(y)]
+                                                    }
+                        )
+                   
+    ###number of alleles per marker########
+    allele.num <- unlist(lapply(allele.list,length))
+
+    #### split data b sample ID
+    dat.split <- split(dat,data[,1])
 
     #### Binary representation of allele being absent and present
     samples.coded <- t(sapply(dat.split, function(x){
