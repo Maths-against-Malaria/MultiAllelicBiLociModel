@@ -26,18 +26,6 @@ source(paste0(path,'/src/STRModel.R'))#("/home/janedoe/Documents/src/STRmodel.R"
 # Finding MLEs from formatted dataset (haplotype frequencies and MOI)
 mle(data, c(3,2), id = TRUE, plugin = NULL)
 
-# Finding MLEs from unformatted dataset (haplotype frequencies and MOI)
-## Step 1: Transforming the dataset using the data_format() function
-data <- data_format(data_unf, id=TRUE)
-
-## Step 2: Finding the MLEs for any pair of marker of interest
-### Dropping Missing data and counting alleles from 0
-pick <- rowSums(data[[1]] == 0) > 0 
-data[[1]] <- data[[1]][!pick,] - 1
-markers <- c(1,2) # pair of markers of interest
-### Estimating the MLEs
-mle(data[[1]][,markers], data[[3]][markers], id = FALSE, plugin = NULL)
-
 # Finding Haplotype frequencies assuming MOI known, i.e., lambda=0.2
 mle(data, c(3,2), id = TRUE, plugin = 0.2)
 
@@ -52,3 +40,14 @@ mle(data, c(3,2), id = TRUE, plugin = NULL, CI = TRUE, B = 15000, alpha = 0.1)
 
 # Finding LD between the two loci. The function outputs the LD measures D', r-squared, Q-star, and ALD.
 ld(data, c(3,2), id = TRUE, CI = TRUE, B = 15000, alpha = 0.1)
+
+# Finding MLEs from unformatted dataset (haplotype frequencies and MOI)
+## Step 1: Transforming the dataset using the data_format() function
+data <- data_format(data_unf, id=TRUE)
+## Step 2: Finding the MLEs for any pair of marker of interest
+### Dropping Missing data and counting alleles from 0
+pick <- rowSums(data[[1]] == 0) > 0 
+data[[1]] <- data[[1]][!pick,] - 1
+markers <- c(1,2) # pair of markers of interest
+### Estimating the MLEs
+mle(data[[1]][,markers], data[[3]][markers], id = FALSE, plugin = NULL)
