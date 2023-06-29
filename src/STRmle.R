@@ -4,7 +4,7 @@
 #                from genomic/molecular data (microsatellite data)
 # Created by   : Christian Tsoungui Obama
 # Created on   : 05.05.22
-# Last modified: 14.03.23
+# Last modified: 29.06.23
 
 # Install the necessary packages if necessary
 install.packages('openxlsx')   # Comment this line if openxlsx installed
@@ -42,12 +42,29 @@ mle(data, c(3,2), id = TRUE, plugin = NULL, CI = TRUE, B = 15000, alpha = 0.1)
 ld(data, c(3,2), id = TRUE, CI = TRUE, B = 15000, alpha = 0.1)
 
 # Finding MLEs from unformatted dataset (haplotype frequencies and MOI)
+########################################################################
 ## Step 1: Transforming the dataset using the data_format() function
+##         The transformed dataset is accessed in data[[1]] 
+##         and the genetic architecture is accessed in data[[3]]
+########################################################################
 data <- data_format(data_unf, id=TRUE)
+
+########################################################################
 ## Step 2: Finding the MLEs for any pair of marker of interest
+########################################################################
+
 ### Dropping Missing data and counting alleles from 0
 pick <- rowSums(data[[1]] == 0) > 0 
 data[[1]] <- data[[1]][!pick,] - 1
-markers <- c(1,2) # pair of markers of interest
+markers <- c(1,2) # choose pair of markers of interest if more than 2 markers
+
 ### Estimating the MLEs
 mle(data[[1]][,markers], data[[3]][markers], id = FALSE, plugin = NULL)
+
+# Finding LD from unformatted dataset (haplotype frequencies and MOI)
+########################################################################
+## Transform the dataset using the data_format() function, 
+## and drop missing information like above,
+## then find LD
+########################################################################
+ld(data[[1]][,markers], data[[3]][markers], id = FALSE, CI = TRUE, B = 15000, alpha = 0.1)

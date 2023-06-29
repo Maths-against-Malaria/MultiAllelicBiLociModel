@@ -832,7 +832,8 @@ ld <- function(Data, arch, id = TRUE, plugin=NULL, CI=FALSE, B=10000, alpha=0.05
   Nx    <- dat1[[2]]
 
   # MLEs
-  est <- mle(dat1, arch, id=id, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=100, B=100, alpha=0.05)
+  est <- mle(Data, arch, id=id, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=100, B=B, alpha=alpha)
+  #print(est)
   ldvals <- ldestim0(est, arch)
 
   # Bootstrap CIs
@@ -845,9 +846,9 @@ ld <- function(Data, arch, id = TRUE, plugin=NULL, CI=FALSE, B=10000, alpha=0.05
       samp  <- rmultinom(N, 1, prob)
       tmp   <- rowSums(samp)
       pick  <- tmp == 0
-      infct[[1]]  <- X[!pick,]
-      infct[[2]]  <- tmp[!pick]
-      esttmp1     <- mle(infct, arch, id=FALSE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=100, B=100, alpha=0.05)
+      infct <- Data[!pick,]
+      esttmp1     <- mle(infct, arch, id=id, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=100, B=B, alpha=alpha)
+      #print(esttmp1)
       tmp1        <- ldestim0(esttmp1, arch)
       Estim[,l]  <- unlist(tmp1) 
     }
