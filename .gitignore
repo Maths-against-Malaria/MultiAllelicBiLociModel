@@ -50,3 +50,6 @@ vignettes/*.pdf
 MultiAllelicBiLociModel.Rproj
 src/.DS_Stores
 src/STRmodel copy.R
+
+.gitignore
+.DS_Store
