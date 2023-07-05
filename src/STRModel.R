@@ -519,6 +519,7 @@ strmodel1 <- function(dat, arch, plugin=NULL){
   }else{
     out <- strmodel_plugin(dat, arch, plugin) # calculates the corrected estimate
   }
+  out
 }
 
 #################################
