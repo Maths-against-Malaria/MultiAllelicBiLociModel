@@ -24,22 +24,25 @@ data_unf <- read.xlsx(paste0(path,'/datasets/example_dataset4.xlsx'), 1)
 source(paste0(path,'/src/STRModel.R'))#("/home/janedoe/Documents/src/STRmodel.R")
 
 # Finding MLEs from formatted dataset (haplotype frequencies and MOI)
-mle(data, c(3,2), id = TRUE, plugin = NULL)
+mle(data, c(2,3))
 
 # Finding Haplotype frequencies assuming MOI known, i.e., lambda=0.2
-mle(data, c(3,2), id = TRUE, plugin = 0.2)
+mle(data, c(2,3), plugin = 0.2)
 
-# Finding MLEs (haplotype frequencies and MOI) with bootstrap bias-correction
-mle(data, c(3,2), id = TRUE, plugin = NULL, BC = TRUE, method = "bootstrap")
+# Finding MLEs (haplotype frequencies and MOI) with bootstrap bias-correction ('Bootstrap')
+mle(data, c(2,3), plugin = NULL, BC = TRUE, method = "bootstrap")
+
+# Finding MLEs (haplotype frequencies and MOI) with bootstrap bias-correction ('jackknife') with plugin
+mle(data, c(2,3), plugin = 0.2, BC = TRUE, method = "jackknife")
 
 # Finding MLEs (haplotype frequencies and MOI) using a 95% confidence interval
-mle(data, c(3,2), id = TRUE, plugin = NULL, CI = TRUE)
+mle(data, c(2,3), plugin = NULL, CI = TRUE)
 
-# Finding MLEs (haplotype frequencies and MOI) using a 90% confidence interval and 15000 bootstrap samples
-mle(data, c(3,2), id = TRUE, plugin = NULL, CI = TRUE, B = 15000, alpha = 0.1)
+# Finding MLEs (haplotype frequencies and MOI) using a 90% confidence interval and 20000 bootstrap samples
+mle(data, c(2,3), plugin = NULL, CI = TRUE, B = 20000, alpha = 0.1)
 
 # Finding LD between the two loci. The function outputs the LD measures D', r-squared, Q-star, and ALD.
-ld(data, c(3,2), id = TRUE, CI = TRUE, B = 15000, alpha = 0.1)
+ld(data, c(2,3), CI = TRUE, B = 15000, alpha = 0.1)
 
 # Finding MLEs from unformatted dataset (haplotype frequencies and MOI)
 ########################################################################
@@ -47,19 +50,25 @@ ld(data, c(3,2), id = TRUE, CI = TRUE, B = 15000, alpha = 0.1)
 ##         The transformed dataset is accessed in data[[1]] 
 ##         and the genetic architecture is accessed in data[[3]]
 ########################################################################
-data <- data_format(data_unf, id=TRUE)
+data <- data_format(data_unf, output.id = TRUE)
 
 ########################################################################
 ## Step 2: Finding the MLEs for any pair of marker of interest
 ########################################################################
 
-### Dropping Missing data and counting alleles from 0
+### Dropping Missing data
 pick <- rowSums(data[[1]] == 0) > 0 
-data[[1]] <- data[[1]][!pick,] - 1
-markers <- c(1,2) # choose pair of markers of interest if more than 2 markers
+data[[1]] <- data[[1]][!pick,]
+
+###  Counting alleles at all markers from 0
+data[[1]][,2:ncol(data[[1]])] <- data[[1]][,2:ncol(data[[1]])]-1
+
+### Selecting Markers of interest (if more than two markers). Include 1 in the vector
+### list to include the ID column, e.g., c(2,3) without ID, and c(1, 2, 3) with ID.
+markers <- c(3,4)
 
 ### Estimating the MLEs
-mle(data[[1]][,markers], data[[3]][markers], id = FALSE, plugin = NULL)
+mle(data[[1]][,markers], data[[3]][markers], id = FALSE)
 
 # Finding LD from unformatted dataset (haplotype frequencies and MOI)
 ########################################################################

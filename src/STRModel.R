@@ -528,6 +528,7 @@ strmodel <- function(dat, arch, BC=FALSE, method='bootstrap', Bbias=10000, plugi
       ppBC  <- 2*out.temp[[2]] - bias[-1]
     }else{
       if(method=="jackknife"){
+        infct <- vector(mode = "list", length = 2)
         J = length(Nx)
         Estim <- array(0, dim = c((nhap+1), J))
         rownames(Estim) <- c('l',(rnames1+1))
@@ -602,17 +603,13 @@ data_format0 <- function(dat, markers, id=TRUE){
     list(samples.coded,allele.list,allele.num)
 }
 
-data_format <- function(data, id=TRUE){
+data_format <- function(data, output.id=TRUE){
     ### dat... is the input data set in standard format of package MLMOI, 1 st column contains smaple IDs
     ### markers ... vector of columms containing markers to be included
-    # Remove the id column
-    dat <- data
-    if(id){
-        dat <- data[,-1]
-    }
 
-    ### Turn data columns into factors
-    #dat <- apply(dat, 2, as.factor)
+    # create data without the the id column
+    data[,1] <- factor(data[,1], levels=unique(data[,1]))
+    dat <- data[,-1]
 
     ### list of alleles per marker. This function, oders alleles such that allele "51I" comes befor "N51 for instance.
     ### As a result, for SNPS loci, mutants are denoted by 1 and the wildtypes are denoted by 2 in the conversion. Note 
@@ -642,6 +639,13 @@ data_format <- function(data, id=TRUE){
                                                     }
                               )
                       )
+    ID <- rownames(samples.coded)
+    samples.coded <- cbind(ID, data.frame(samples.coded))
+    rownames(samples.coded) <- NULL
+
+    if(!output.id){
+      samples.coded <- samples.coded[,-1]
+    }
     list(samples.coded,allele.list,allele.num)
 }
 
