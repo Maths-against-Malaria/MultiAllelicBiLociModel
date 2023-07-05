@@ -150,7 +150,7 @@ obs <- function(M, arch){
   for(i in 1:2){
     bin <- 2^x[[i]]
     binx <- is.element(x[[i]], M[,i]) 
-    out[i] <- bin %*% binx - 1
+    out[i] <- bin %*% binx
   }
   out
 }
@@ -166,9 +166,8 @@ datasetgen <- function(P,lambda,N,arch){
   m <- cpoiss(lambda,N)              # MOI values for each sample following CPoiss(lambda)
   for(j in 1:N){                     
     s <- rmultinom(1, m[j], P) #multinomially select M[j] haplotypes from the haplotype pool
-    out[j,] <- obs(H[s!=0,], arch) #Summing up the trianary representation of a number representing the infection
+    out[j,] <- obs(H[s!=0,], arch) #Summing up the mixed-radix representation of a number representing the infection
   } #vector of infections
-  out <- out+1
   out
 }
 
@@ -388,7 +387,7 @@ eststrmodel <- function(dat, arch){
 # and returns the plugin Poisson parameter and the MLEs for haplotype frequencies.
 #################################
 strmodel_plugin <- function(dat, arch, lam){
-  X <- dat[[1]] + 1
+  X <- dat[[1]]
   Nx <- dat[[2]]
   N <- sum(Nx)
   nn <- nrow(X)
@@ -422,7 +421,7 @@ strmodel_plugin <- function(dat, arch, lam){
     Ax[[u]][[4]] <- list()
     for(k in 1:n){
       temp <- gead(x[u,k],2,l[[k]])
-      temp1 <- varsets1(temp+1)[-1,]
+      temp1 <- varsets1(temp)[-1,]
       Hx[[u]][[1]][k] <- sum(temp)
       Hx[[u]][[2]][[k]] <- (alnum[[k]])[temp*alnum[[k]]]
       Hx[[u]][[3]][[k]] <- temp1
@@ -738,6 +737,13 @@ reform <- function(DATA, arch, id = TRUE){
 #################################
 mle <-function(Data, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=10000, B=10000, alpha=0.05){
   
+  ### Dropping Missing data
+  pick <- rowSums(Data == 0) > 0 
+  Data <- Data[!pick,]
+
+  ### Actual sample size
+  Ex.N <- nrow(Data)
+
   dat1  <- reform(Data, arch, id=id)
   X     <- dat1[[1]]
   Nx    <- dat1[[2]]
@@ -790,13 +796,13 @@ mle <-function(Data, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="boo
     }
     out4 <- cbind(out2,perc[2:(nhap+1),])
 
-    out <- list(out3, out4, dat)
+    out <- list(out3, out4, dat, Ex.N)
   }else{
     out1 <- out[[1]]
     names(out1) <- c('')
-    out <- list(out1, t(out2), dat)
+    out <- list(out1, t(out2), dat, Ex.N)
   }
-  names(out) <- c(expression(lambda), 'p', 'haplotypes')
+  names(out) <- c(expression(lambda), 'p', 'haplotypes', 'Sample size')
   out
 }
 

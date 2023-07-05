@@ -56,19 +56,12 @@ data <- data_format(data_unf, output.id = TRUE)
 ## Step 2: Finding the MLEs for any pair of marker of interest
 ########################################################################
 
-### Dropping Missing data
-pick <- rowSums(data[[1]] == 0) > 0 
-data[[1]] <- data[[1]][!pick,]
-
-###  Counting alleles at all markers from 0
-#data[[1]][,2:ncol(data[[1]])] <- data[[1]][,2:ncol(data[[1]])]-1
-
 ### Selecting Markers of interest (if more than two markers). Include 1 in the vector
 ### list to include the ID column, e.g., c(2,3) without ID, and c(1, 2, 3) with ID.
 markers <- c(3,4)
 
 ### Estimating the MLEs
-mle(data[[1]][,markers], data[[3]][markers], id = FALSE)
+mle(data[[1]][,(markers+1)], data[[3]][markers], id = FALSE)
 
 # Finding LD from unformatted dataset (haplotype frequencies and MOI)
 ########################################################################
