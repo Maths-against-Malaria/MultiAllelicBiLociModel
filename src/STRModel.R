@@ -25,9 +25,10 @@ varsets <- function(l,n) {
   B
 }
 
-varsets1 <- function(l){   #calculate all var sets
-  # n number of loci
-  # l number of alleles per locus
+varsets1a <- function(l){   
+  # calculate all sub-observations
+  ## n ... number of alleles
+  ## l ... 0-1 vector indicating absence/presence of alleles 
   n <- length(l)
   B <- array(0,c(prod(l),n))
   B[1:l[1],1] <- 0:(l[1]-1)
@@ -39,6 +40,29 @@ varsets1 <- function(l){   #calculate all var sets
         pick1 <- (lkmo+1):lk
         B[pick1,] <- B[rep(1:lkmo,l[k]-1),]
         B[pick1,k] <- rep(1:(l[k]-1),each=lkmo)
+        lkmo <- lk   
+      }
+    }
+  }
+  B
+}
+
+
+varsets1 <- function(l){   
+  # calculate all sub-observations
+  ## n ... number of alleles
+  ## l ... 0-1 vector indicating absence/presence of alleles 
+  n <- length(l)
+  B <- array(0,c(2^sum(l),n))
+  B[1:(l[1]+1),1] <- 0:(l[1])
+  lkmo <- l[1]+1
+  if(n>1){
+    for(k in 2:n){
+      if(l[k]>0){
+        lk <- lkmo*(l[k]+1)
+        pick1 <- (lkmo+1):lk
+        B[pick1,] <- B[rep(1:lkmo,l[k]),]
+        B[pick1,k] <- rep(1:(l[k]),each=lkmo)
         lkmo <- lk   
       }
     }
@@ -169,7 +193,11 @@ datagen <- function(P,lambda,N,arch){
   list(dat, c(out))
 }
 
-gead <- function(x,l,n){   ## calculates geadic expression of each element of vectorx 
+gead <- function(x,l,n){   ## calculates mixed-radix expression of each element of vector x 
+### x <- vector of observations
+### l <- vector of genetic architecture
+### n <- number of markers
+
   l <- rep(l,n)
   out <- array(0,c(length(x),n))
   div <- c(1,cumprod(l[1:(n-1)]))
@@ -193,7 +221,7 @@ gen_func <- function(x, lambd){
 # estimates of haplotype frequencies and Poisson parameter.
 #################################
 strmodel0 <- function(dat, arch){
-  X <- dat[[1]] + 1
+  X <- dat[[1]] #+ 1
   Nx <- dat[[2]]
   N <- sum(Nx)
   nn <- nrow(X)
@@ -226,8 +254,8 @@ strmodel0 <- function(dat, arch){
     Ax[[u]][[3]] <- list()
     Ax[[u]][[4]] <- list()
     for(k in 1:n){
-      temp <- gead(x[u,k],2,l[[k]])
-      temp1 <- varsets1(temp+1)[-1,]
+      temp <- gead(x[u,k],2,l[k])
+      temp1 <- varsets1(temp)[-1,]
       Hx[[u]][[1]][k] <- sum(temp)
       Hx[[u]][[2]][[k]] <- (alnum[[k]])[temp*alnum[[k]]]
       Hx[[u]][[3]][[k]] <- temp1
@@ -646,7 +674,24 @@ data_format <- function(data, output.id=TRUE){
     if(!output.id){
       samples.coded <- samples.coded[,-1]
     }
-    list(samples.coded,allele.list,allele.num)
+    out <- list(samples.coded,allele.list,allele.num)
+    names(out) <- c("data transformed", "Alleles per markers", "Number of alleles per marker")
+    out
+}
+
+#################################
+# The function sampl(dat) finds the number of occurences of each observation in the dataset dat.
+# The output is a vector of those numbers.
+#################################
+sampl <- function(dat, arch){
+  
+    nloci <- ncol(dat)
+    #trin <- rev((2^arch)^c(0,1))
+    trin <- c(2^arch[2],1)
+    #trin <- rev((2^arch)^c(0,1)) # vector of geadic representaion
+    out <- as.matrix(dat, ncol=nloci)%*%trin
+    out <- table(out)
+    out
 }
 
 #################################
@@ -665,17 +710,24 @@ reform <- function(DATA, arch, id = TRUE){
     Nx <- sampl(X1, arch)
 
     # Matrix of  observed observations
-    trin <- rev((2^arch-1)^c(0,1)) # geadic representation
+    trin <- c(2^arch[2],1) #rev((2^arch-1)^c(0,1)) # geadic representation
 
-    X1 <- as.matrix(X1, ncol=2)%*%trin + 1
-    X1 <- t(as.data.frame(summary.factor(X1)))    # Observations present in the dataset
-    vals <- as.numeric(colnames(X1))-1        
+    #X1 <- as.matrix(X1, ncol=2)%*%trin
+    #X1 <- t(as.data.frame(summary.factor(X1)))    # Observations present in the dataset
+    X1 <- Nx
+    vals <- as.integer(names(X1))        
     dat <- array(0,c(length(vals),2))
-    for(k in 1:2){ #for each locus
-      re <- vals%%trin[k]
-      dat[,k] <- (vals-re)/trin[k]
-      vals <- re
-    }
+
+    tn2 <- 2^(arch[2])
+    dat[,1] <- vals %/% tn2
+    dat[,2] <- vals - dat[,1] * tn2 
+    
+   # for(k in 1:2){ #for each locus
+    #  re <- vals%%trin[k]
+    #  dat[,k] <- (vals-re)/trin[k]
+    #  vals <- re
+    #}
+    
     list(dat, Nx)
 }
 
@@ -746,17 +798,6 @@ mle <-function(Data, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="boo
   }
   names(out) <- c(expression(lambda), 'p', 'haplotypes')
   out
-}
-
-#################################
-# The function sampl(dat) finds the number of occurences of each observation in the dataset dat.
-# The output is a vector of those numbers.
-#################################
-sampl <- function(dat, arch){
-    nloci <- ncol(dat)
-    trin <- rev((2^arch-1)^c(0,1)) # vector of geadic representaion
-    out <- table(as.matrix(dat, ncol=nloci)%*%trin + 1)
-    out
 }
 
 #################################

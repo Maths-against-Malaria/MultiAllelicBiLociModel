@@ -61,7 +61,7 @@ pick <- rowSums(data[[1]] == 0) > 0
 data[[1]] <- data[[1]][!pick,]
 
 ###  Counting alleles at all markers from 0
-data[[1]][,2:ncol(data[[1]])] <- data[[1]][,2:ncol(data[[1]])]-1
+#data[[1]][,2:ncol(data[[1]])] <- data[[1]][,2:ncol(data[[1]])]-1
 
 ### Selecting Markers of interest (if more than two markers). Include 1 in the vector
 ### list to include the ID column, e.g., c(2,3) without ID, and c(1, 2, 3) with ID.
