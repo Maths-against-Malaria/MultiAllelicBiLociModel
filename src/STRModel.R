@@ -25,33 +25,11 @@ varsets <- function(l,n) {
   B
 }
 
-varsets1a <- function(l){   
-  # calculate all sub-observations
-  ## n ... number of alleles
-  ## l ... 0-1 vector indicating absence/presence of alleles 
-  n <- length(l)
-  B <- array(0,c(prod(l),n))
-  B[1:l[1],1] <- 0:(l[1]-1)
-  lkmo <- l[1]
-  if(n>1){
-    for(k in 2:n){
-      if(l[k]>1){
-        lk <- lkmo*l[k]
-        pick1 <- (lkmo+1):lk
-        B[pick1,] <- B[rep(1:lkmo,l[k]-1),]
-        B[pick1,k] <- rep(1:(l[k]-1),each=lkmo)
-        lkmo <- lk   
-      }
-    }
-  }
-  B
-}
-
-
 varsets1 <- function(l){   
-  # calculate all sub-observations
+  # calculate all haplotypes that could contribute to observation (Ax)
   ## n ... number of alleles
-  ## l ... 0-1 vector indicating absence/presence of alleles 
+  ## l ... 0-1 vector indicating absence/presence of alleles
+
   n <- length(l)
   B <- array(0,c(2^sum(l),n))
   B[1:(l[1]+1),1] <- 0:(l[1])
@@ -70,9 +48,11 @@ varsets1 <- function(l){
   B
 }
 
-varsets2 <- function(l){   #calculate all var sets
+varsets2 <- function(l){   
+  # calculate all sub-observations
   # n number of loci
   # l number of alleles per locus
+
   n <- length(l)
   B <- array(1,c(prod(l),n))
   B[1:l[1],1] <- 1:l[1]
@@ -265,6 +245,7 @@ strmodel0 <- function(dat, arch){
     vz1 <- sum(Hx[[u]][[1]])
     temp2 <- prod(Hx[[u]][[6]])
     Ax[[u]][[1]] <- temp2
+    #print(Hx[[u]][[6]])
     Ax[[u]][[2]] <- varsets2(Hx[[u]][[6]])
     for(k in 1:n){
       Ax[[u]][[2]][,k] <- Hx[[u]][[4]][[k]][Ax[[u]][[2]][,k]]
@@ -686,10 +667,9 @@ data_format <- function(data, output.id=TRUE){
 sampl <- function(dat, arch){
   
     nloci <- ncol(dat)
-    #trin <- rev((2^arch)^c(0,1))
     trin <- c(2^arch[2],1)
-    #trin <- rev((2^arch)^c(0,1)) # vector of geadic representaion
     out <- as.matrix(dat, ncol=nloci)%*%trin
+    print(out)
     out <- table(out)
     out
 }
@@ -699,36 +679,39 @@ sampl <- function(dat, arch){
 # and a vector of the counts of those observations, i.e., number of times each observation is made in the dataset.
 #################################
 reform <- function(DATA, arch, id = TRUE){
-    # This function formats the data for the MLE function
-    # Remove the id column
-    X1 <- DATA
-    if(id){
-        X1 <- X1[,-1]
-    }
-    
-    # Deriving the number of time Nx each observation is made in the dataset
-    Nx <- sampl(X1, arch)
 
-    # Matrix of  observed observations
-    trin <- c(2^arch[2],1) #rev((2^arch-1)^c(0,1)) # geadic representation
+  matrix_data <- matrix(c(10, 2, 3, 1, 2, 3, 1, 2, 3, 4, 5, 6, 1, 2, 3, 1, 2, 3), nrow = 6, byrow = TRUE)
+  tab <- apply(matrix_data, 1, paste, collapse = "-")
+  a <- table(tab)
+  t(array(as.numeric(unlist(strsplit(names(a),"-"))),c(length(a),3)))
+  table(match(apply(matrix_data, 1, paste, collapse = ","), apply(dat, 1, paste, collapse = ",")))
 
-    #X1 <- as.matrix(X1, ncol=2)%*%trin
-    #X1 <- t(as.data.frame(summary.factor(X1)))    # Observations present in the dataset
-    X1 <- Nx
-    vals <- as.integer(names(X1))        
-    dat <- array(0,c(length(vals),2))
+  # This function formats the data for the MLE function
+  # Remove the id column
+  X1 <- DATA
+  if(id){
+      X1 <- X1[,-1]
+  }
+  
+  # Deriving the number of time Nx each observation is made in the dataset
+  Nx <- sampl(X1, arch)
 
-    tn2 <- 2^(arch[2])
-    dat[,1] <- vals %/% tn2
-    dat[,2] <- vals - dat[,1] * tn2 
-    
-   # for(k in 1:2){ #for each locus
-    #  re <- vals%%trin[k]
-    #  dat[,k] <- (vals-re)/trin[k]
-    #  vals <- re
-    #}
-    
-    list(dat, Nx)
+  # Matrix of  observed observations
+  trin <- c(2^arch[2],1) # geadic representation
+
+  X1 <- Nx
+  vals <- as.numeric(names(X1))        
+  dat <- array(0,c(length(vals),4))
+
+  tn2 <- 2^(arch[2])
+  dat[,1] <- vals %/% tn2
+  
+  tmp1 <- (vals %/% tn2) * tn2
+  dat[,2] <- vals - tmp1 # (vals %/% tn2) * tn2 ## Numerical instability !!!!!!!!! CHeck high precision arithmetic
+  dat[,3] <- arch[2]
+  dat[,4] <- vals
+  
+  list(dat, Nx)
 }
 
 #################################
@@ -736,7 +719,7 @@ reform <- function(DATA, arch, id = TRUE){
 # with or without the Poisson parameter as a plug-in estimate, respectively. Moreover, the option to ouput the bias corrected (BC) estimates with 
 # confidence intervals (CI) is available. The function outputs the estimates for haplotype frequencies, Poisson parameters, and a matrix of detected haplotypes.
 #################################
-mle <-function(Data, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=10000, B=10000, alpha=0.05){
+mle <- function(Data, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="bootstrap", Bbias=10000, B=10000, alpha=0.05){
   
   ### Dropping Missing data
   pick <- rowSums(Data == 0) > 0 
@@ -749,7 +732,7 @@ mle <-function(Data, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="boo
   X     <- dat1[[1]]
   Nx    <- dat1[[2]]
   nloci <- 2 #ncol(X)
-
+  print(dat1)
   # MLEs
   out <- strmodel(dat1, arch, BC=BC, method=method, Bbias=Bbias, plugin=plugin)
   trin <- rev((arch)^c(0,1)) # geadic representation
@@ -878,8 +861,9 @@ ldestim0 <- function(est, gen){
 }
 
 ld <- function(Data, arch, id = TRUE, plugin=NULL, CI=FALSE, B=10000, alpha=0.05){
-
-  dat1  <- reform(Data, arch, id=id)
+  pick <- rowSums(Data == 0) > 0
+  data <- Data[!pick,]
+  dat1 <- reform(data, arch, id=id)
   X     <- dat1[[1]]
   Nx    <- dat1[[2]]
 

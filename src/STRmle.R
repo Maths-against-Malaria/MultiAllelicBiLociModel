@@ -6,7 +6,6 @@
 # Created on   : 05.05.22
 # Last modified: 29.06.23
 
-
 path <- "/Users/christian/Library/CloudStorage/GoogleDrive-christian.tsoungui@aims-cameroon.org/.shortcut-targets-by-id/1Ulru-DjbFRaMVB7Vj9tJ4NfyzPDkhzOr/Maths against Malaria/Christian/Models/MultiAllelicBiLociModel"
 
 # Load external resources
@@ -62,4 +61,3 @@ mle(data, c(2,3),  CI = TRUE, B = 20000, alpha = 0.1)
 
 # Finding LD between the two loci. The function outputs the LD measures D', r-squared, Q-star, and ALD.
 ld(data, c(2,3), CI = TRUE)
-
