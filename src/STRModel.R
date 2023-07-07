@@ -152,24 +152,26 @@ datasetgen <- function(P,lambda,N,arch){
 }
 
 datagen <- function(P,lambda,N,arch){ 
-  n <- 2
-  H <- hapl(arch)       # Set of possible haplotypes
-  vec <- rev((2^arch-1)^c(0,1)) #c((2^arch[2]-1),1)    # Vector for geadic representation
-  out <- array(0,N)
-  m <- cpoiss(lambda,N) # MOI values for each sample following CPoiss(lambda)
-  for(j in 1:N){        # for each sample
-    s <- rmultinom(1, m[j], P) #multinomially select M[j] haplotypes from the haplotype pool
-    out[j] <- vec%*%obs(H[s!=0,], arch)+1 #Summing up the trianary representation of a number representing the infection
-  } #vector of infections
-  out <- t(as.data.frame(summary.factor(out))) #vector of how many times each infection that is effectively present appears in the dataset
-  vals <- as.integer(colnames(out))-1 #Infections present in the dataset
-  dat <- array(0,c(length(vals),n))
-  for(k in 1:n){ #for each locus
-    re <- vals%%vec[k]
-    dat[,k] <- (vals-re)/vec[k]
-    vals <- re
-  } #Trianary representation of each infection present in the dataset
-  list(dat, c(out))
+  #n <- 2
+  #H <- hapl(arch)       # Set of possible haplotypes
+  #vec <- rev((2^arch-1)^c(0,1)) #c((2^arch[2]-1),1)    # Vector for geadic representation
+  #out <- array(0,N)
+  #m <- cpoiss(lambda,N) # MOI values for each sample following CPoiss(lambda)
+  #for(j in 1:N){        # for each sample
+  #  s <- rmultinom(1, m[j], P) #multinomially select M[j] haplotypes from the haplotype pool
+  #  out[j] <- vec%*%obs(H[s!=0,], arch)+1 #Summing up the trianary representation of a number representing the infection
+  #} #vector of infections
+  out <- datasetgen(P,lambda,N,arch)
+  reform(out, arch, id = FALSE)
+  #out <- t(as.data.frame(summary.factor(out))) #vector of how many times each infection that is effectively present appears in the dataset
+  #vals <- as.integer(colnames(out))-1 #Infections present in the dataset
+  #dat <- array(0,c(length(vals),n))
+  #for(k in 1:n){ #for each locus
+  #  re <- vals%%vec[k]
+  #  dat[,k] <- (vals-re)/vec[k]
+  #  vals <- re
+  #} #Trianary representation of each infection present in the dataset
+  #list(dat, c(out))
 }
 
 gead <- function(x,l,n){   ## calculates mixed-radix expression of each element of vector x 
@@ -336,31 +338,6 @@ strmodel0 <- function(dat, arch){
     pp <- ppn
   }
   list(la, pp)
-}
-
-eststrmodel <- function(dat, arch){
-  out <- strmodel0(dat,arch)
-  la <- out[[1]]
-  pp <- out[[2]]
-  ## Ordering the frequencies
-  pp <- pp[order(as.numeric(rownames(pp))), ]
-
-  ## Setting the frequencies of the unobserved haplotypes to 0.0
-  nhapl <- prod(arch)
-
-  if(length(pp)<nhapl){
-    out <- t(pp)
-    name <- colnames(out)
-    cnt <- 0
-    for (i in 1:nhapl) {
-      if (is.element(as.character(i), name)){
-        cnt <- cnt + 1
-      }else{
-        pp <- append(pp, list(x = 0.0), i-1)
-      }
-    }
-  }
-  list(la, unlist(pp))
 }
 
 #################################
@@ -573,45 +550,6 @@ strmodel <- function(dat, arch, BC=FALSE, method='bootstrap', Bbias=10000, plugi
 ### The second element gives the order of the alleles pper locus
 ### The third element gives th number of alleles per locucs
 #################################
-data_format0 <- function(dat, markers, id=TRUE){
-    ### dat... is the input data set in standard format of package MLMOI, 1 st column contains smaple IDs
-    ### markers ... vector of columms containing markers to be included
-    # Remove the id column
-    if(id){
-        dat <- dat[,-1]
-    }
-
-    ### list of alleles per marker. This function, oders alleles such that allele "51I" comes befor "N51 for instance.
-    ### As a result, for SNPS loci, mutants are denoted by 1 and the wildtypes are denoted by 2 in the conversion. Note 
-    ### that in the converted dataset, 0 characterizes missing values.
-    ############
-    allele.list <- sapply(as.list(dat[,markers]), function(x){ 
-                                                        y=sort(unique(x))
-                                                        y[!is.na(y)]
-                                                    }
-                        )
-                   
-    ###number of alleles per marker########
-    allele.num <- unlist(lapply(allele.list,length))
-
-    #### split data b sample ID
-    dat.split <- split(dat[,markers],dat[,1])
-
-    #### Binary representation of allele being absent and present
-    samples.coded <- t(sapply(dat.split, function(x){
-                                                      mapply(function(x,y,z){
-                                                                              as.integer(is.element(y,x)) %*% 2^(0:(z-1))
-                                                                            }, 
-                                                              x, 
-                                                              allele.list, 
-                                                              allele.num
-                                                            )
-                                                    }
-                              )
-                      )
-    list(samples.coded,allele.list,allele.num)
-}
-
 data_format <- function(data, output.id=TRUE){
     ### dat... is the input data set in standard format of package MLMOI, 1 st column contains smaple IDs
     ### markers ... vector of columms containing markers to be included
@@ -678,7 +616,7 @@ sampl <- function(dat, arch){
 # The function reform(X1,id) takes as input the dataset in the 0-1-2-notation and returns a matrix of the observations,
 # and a vector of the counts of those observations, i.e., number of times each observation is made in the dataset.
 #################################
-reform <- function(DATA, arch, id = TRUE){
+reform1 <- function(DATA, arch, id = TRUE){
 
   matrix_data <- matrix(c(10, 2, 3, 1, 2, 3, 1, 2, 3, 4, 5, 6, 1, 2, 3, 1, 2, 3), nrow = 6, byrow = TRUE)
   tab <- apply(matrix_data, 1, paste, collapse = "-")
@@ -714,6 +652,23 @@ reform <- function(DATA, arch, id = TRUE){
   list(dat, Nx)
 }
 
+reform <- function(DATA, arch, id = TRUE){
+  data.comp <- apply(DATA,1,function(x) paste(x,collapse="-"))
+  Nx <- table(data.comp)
+  Nx.names <- names(Nx)
+  X <- t(sapply(Nx.names, function(x) unlist(strsplit(x,"-")) ))
+  rownames(X) <- NULL
+  X1 <- array(as.numeric(X),dim(X))  # do not use as.integer
+
+  # Now select only rows without missing data , i.e., no entry =0
+  #sel <- rowSums(X2==0)==0  
+  #Nx1 <- Nx[sel]
+  #X1 <- X2[sel,]
+  #X1
+  #Nx1
+  list(X1, Nx)
+}
+
 #################################
 # The function mle() wraps the reform(X1,id) and either strmodel(dat, arch) or strmodel_plugin(dat, arch, plugin) to find the MLEs 
 # with or without the Poisson parameter as a plug-in estimate, respectively. Moreover, the option to ouput the bias corrected (BC) estimates with 
@@ -732,7 +687,7 @@ mle <- function(Data, arch, id=TRUE, plugin=NULL, CI=FALSE, BC=FALSE, method="bo
   X     <- dat1[[1]]
   Nx    <- dat1[[2]]
   nloci <- 2 #ncol(X)
-  print(dat1)
+  #print(dat1)
   # MLEs
   out <- strmodel(dat1, arch, BC=BC, method=method, Bbias=Bbias, plugin=plugin)
   trin <- rev((arch)^c(0,1)) # geadic representation
