@@ -543,6 +543,34 @@ strmodel <- function(dat, arch, BC=FALSE, method='bootstrap', Bbias=10000, plugi
   out
 }
 
+
+mle_sim <- function(dat, arch){
+  dat <- reform(dat, arch, id = FALSE)
+  out <- strmodel0(dat,arch)
+  la <- out[[1]]
+  pp <- out[[2]]
+  ## Ordering the frequencies
+  pp <- pp[order(as.numeric(rownames(pp))), ]
+
+  ## Setting the frequencies of the unobserved haplotypes to 0.0
+  nhapl <- prod(arch)
+
+  if(length(pp)<nhapl){
+    out <- t(pp)
+    name <- colnames(out)
+    cnt <- 0
+    for (i in 1:nhapl) {
+      if (is.element(as.character(i), name)){
+        cnt <- cnt + 1
+      }else{
+        pp <- append(pp, list(x = 0.0), i-1)
+      }
+    }
+  }
+  list(la, unlist(pp))
+}
+
+
 #################################
 ### function data.format outputs a list containing as first element  the data in new format (1 row per sample, 1 colum by marker) 
 ### entries are integerers. If transformed into binary numbers 0-1 vectors they indicate absence/presence of alleles 
